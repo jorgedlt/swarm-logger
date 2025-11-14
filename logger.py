@@ -4,6 +4,20 @@ import os
 from datetime import datetime
 from nats.aio.client import Client as NATS
 
+async def message_handler(msg, log_file):
+    timestamp = datetime.utcnow().isoformat()
+    try:
+        data = msg.data.decode('utf-8') if isinstance(msg.data, bytes) else str(msg.data)
+    except UnicodeDecodeError:
+        data = str(msg.data)  # Fallback to str representation
+    log_entry = {
+        "timestamp": timestamp,
+        "subject": msg.subject,
+        "data": data
+    }
+    with open(log_file, 'a') as f:
+        f.write(json.dumps(log_entry) + '\n')
+
 async def main():
     nc = NATS()
     nats_url = os.getenv("NATS_URL", "nats://localhost:4222")
@@ -12,19 +26,8 @@ async def main():
     # Ensure log directory exists
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
-    async def message_handler(msg):
-        timestamp = datetime.utcnow().isoformat()
-        data = msg.data.decode('utf-8') if isinstance(msg.data, bytes) else str(msg.data)
-        log_entry = {
-            "timestamp": timestamp,
-            "subject": msg.subject,
-            "data": data
-        }
-        with open(log_file, 'a') as f:
-            f.write(json.dumps(log_entry) + '\n')
-
     await nc.connect(nats_url)
-    await nc.subscribe(">", cb=message_handler)
+    await nc.subscribe(">", cb=lambda msg: message_handler(msg, log_file))
 
     print(f"Connected to NATS at {nats_url}, logging to {log_file}")
 

@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  swarm-natscore:
+    image: nats:2.10-alpine
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    networks:
+      - swarm-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8222"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  swarm-logger:
+    image: swarm-logger:latest
+    environment:
+      - NATS_URL=nats://swarm-natscore:4222
+      - LOG_FILE=/logs/swarm.log
+    volumes:
+      - logs:/logs
+    depends_on:
+      swarm-natscore:
+        condition: service_healthy
+    networks:
+      - swarm-net
+
+  swarm-gateway:
+    image: swarm-gateway:latest  # Assuming built
+    ports:
+      - "8000:8000"
+    environment:
+      - NATS_URL=nats://swarm-natscore:4222
+    depends_on:
+      swarm-natscore:
+        condition: service_healthy
+    networks:
+      - swarm-net
+
+  swarm-vaultctl:
+    image: swarm-vaultctl:latest  # Assuming built
+    environment:
+      - NATS_URL=nats://swarm-natscore:4222
+    depends_on:
+      swarm-natscore:
+        condition: service_healthy
+    networks:
+      - swarm-net
+
+  swarm-cronctl:
+    image: swarm-cronctl:latest  # Assuming built
+    environment:
+      - NATS_URL=nats://swarm-natscore:4222
+    depends_on:
+      swarm-natscore:
+        condition: service_healthy
+    networks:
+      - swarm-net
+
+  swarm-shepard:
+    image: swarm-shepard:latest  # Assuming built
+    environment:
+      - NATS_URL=nats://swarm-natscore:4222
+    depends_on:
+      - swarm-natscore
+      - swarm-logger
+      - swarm-gateway
+      - swarm-vaultctl
+      - swarm-cronctl
+    networks:
+      - swarm-net
+
+volumes:
+  logs:
+
+networks:
+  swarm-net:
+    driver: bridge
