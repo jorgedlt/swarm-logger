@@ -83,3 +83,16 @@ A reliable logging agent for the swarm that captures and stores all events from 
    ```
 
 Ensure the NATS server is accessible and the log directory is writable.
+
+## Completeness grade: B
+
+The logging service code and tests are in this repo. Shared swarm
+infrastructure lives outside it, named below.
+
+## Not in code
+
+- The NATS messaging server the swarm runs on: deployed separately on
+  the user's infrastructure; address and credentials are runtime
+  configuration in the user's secret stores, never in this repo.
+- Log retention and any external log shipping setup: the user's own
+  infrastructure configuration.
